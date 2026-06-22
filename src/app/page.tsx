@@ -25,6 +25,13 @@ import {
   ShieldCheck,
   Zap,
   ArrowUpRight,
+  GraduationCap,
+  School2,
+  Lock,
+  Mail,
+  LogOut,
+  ChevronRight,
+  AlertCircle,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ *
@@ -87,9 +94,61 @@ const STUDENT_SCHOOL_ID = 1; // Öğrencinin okulu: Kadıköy Anadolu Lisesi
 const formatNumber = (n: number) =>
   new Intl.NumberFormat("tr-TR").format(Math.round(n));
 
+/* ------------------------------------------------------------------ *
+ *  GİRİŞ / ROL TANIMLARI
+ * ------------------------------------------------------------------ */
+
+type Role = "student" | "school" | "admin";
+
+type Session = { role: Role; email: string; name: string };
+
+type RoleDef = {
+  role: Role;
+  title: string;
+  desc: string;
+  icon: typeof GraduationCap;
+  email: string; // demo hesabı
+  accent: string; // gradient
+  tabs: TabKey[]; // bu rolün görebileceği sekmeler
+};
+
+// Demo hesapları — prototipte herhangi bir şifre kabul edilir.
+const ROLE_DEFS: RoleDef[] = [
+  {
+    role: "student",
+    title: "Öğrenci Girişi",
+    desc: "Atığını yükle, okuluna puan kazandır.",
+    icon: GraduationCap,
+    email: "ogrenci@kadikoyanadolu.k12.tr",
+    accent: "from-emerald-500 to-teal-500",
+    tabs: ["student", "leaderboard"],
+  },
+  {
+    role: "school",
+    title: "Okul Girişi",
+    desc: "Okulunun performansını ve sıralamayı izle.",
+    icon: School2,
+    email: "yonetim@kadikoyanadolu.k12.tr",
+    accent: "from-sky-500 to-indigo-500",
+    tabs: ["leaderboard", "dashboard"],
+  },
+  {
+    role: "admin",
+    title: "Vakıf Yöneticisi Girişi",
+    desc: "Tüm Türkiye verilerini kontrol et.",
+    icon: ShieldCheck,
+    email: "yucel@sifiratikvakfi.org",
+    accent: "from-violet-500 to-fuchsia-500",
+    tabs: ["student", "leaderboard", "dashboard"],
+  },
+];
+
+const roleDef = (role: Role) => ROLE_DEFS.find((r) => r.role === role)!;
+
 /* ------------------------------------------------------------------ */
 
 export default function Page() {
+  const [session, setSession] = useState<Session | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("student");
 
   // Paylaşılan canlı durum
@@ -165,12 +224,24 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleLogin = (s: Session) => {
+    setSession(s);
+    setActiveTab(roleDef(s.role).tabs[0]);
+  };
+
+  if (!session) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  const allowedTabs = roleDef(session.role).tabs;
+  const tab = allowedTabs.includes(activeTab) ? activeTab : allowedTabs[0];
+
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-emerald-50/40 to-sky-50">
-      <Header />
+      <Header session={session} onLogout={() => setSession(null)} />
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-10">
-        {activeTab === "student" && (
+        {tab === "student" && (
           <StudentScreen
             studentPoints={studentPoints}
             setStudentPoints={setStudentPoints}
@@ -180,14 +251,241 @@ export default function Page() {
             onRecycle={registerRecycle}
           />
         )}
-        {activeTab === "leaderboard" && <Leaderboard schools={schools} />}
-        {activeTab === "dashboard" && (
-          <Dashboard totals={totals} schools={schools} activities={activities} />
+        {tab === "leaderboard" && <Leaderboard schools={schools} />}
+        {tab === "dashboard" && (
+          <Dashboard
+            totals={totals}
+            schools={schools}
+            activities={activities}
+            session={session}
+          />
         )}
       </main>
 
       <Footer />
-      <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <TabBar
+        activeTab={tab}
+        setActiveTab={setActiveTab}
+        allowedTabs={allowedTabs}
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  GİRİŞ EKRANI
+ * ------------------------------------------------------------------ */
+
+function Login({ onLogin }: { onLogin: (s: Session) => void }) {
+  const [role, setRole] = useState<Role>("admin");
+  const def = roleDef(role);
+  const [email, setEmail] = useState(def.email);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Rol değişince e-postayı demo hesabıyla doldur
+  const selectRole = (r: Role) => {
+    setRole(r);
+    setEmail(roleDef(r).email);
+    setError("");
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setError("Lütfen e-posta adresinizi girin.");
+      return;
+    }
+    if (!password.trim()) {
+      setError("Lütfen şifrenizi girin. (Demo: herhangi bir şifre yeterli)");
+      return;
+    }
+    setLoading(true);
+    setTimeout(() => {
+      const name =
+        role === "admin"
+          ? "Yücel Abi"
+          : role === "school"
+            ? "Okul Yönetimi"
+            : "Öğrenci";
+      onLogin({ role, email: email.trim(), name });
+    }, 800);
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-900 via-emerald-950 to-sky-950">
+      <div className="flex flex-1 items-center justify-center px-4 py-10">
+        <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl lg:grid-cols-2">
+          {/* Sol tanıtım paneli */}
+          <div className="relative hidden flex-col justify-between bg-gradient-to-br from-emerald-600 to-sky-600 p-10 text-white lg:flex">
+            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
+            <div className="absolute -bottom-12 -left-8 h-48 w-48 rounded-full bg-white/10" />
+            <div className="relative">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
+                  <Recycle className="h-7 w-7" strokeWidth={2.4} />
+                </div>
+                <div>
+                  <p className="text-lg font-extrabold leading-tight">
+                    Sıfır Atık Hub
+                  </p>
+                  <p className="text-xs opacity-90">
+                    Yapay Zeka Destekli Oyunlaştırma
+                  </p>
+                </div>
+              </div>
+              <h2 className="mt-10 text-3xl font-extrabold leading-snug">
+                Türkiye’nin okullarını
+                <br /> sıfır atıkta birleştiriyoruz.
+              </h2>
+              <p className="mt-4 max-w-xs text-sm text-white/90">
+                Rolünü seç, giriş yap ve sana özel paneli keşfet. Yöneticiler
+                tüm Türkiye verisini tek ekrandan kontrol eder.
+              </p>
+            </div>
+            <div className="relative mt-10 space-y-3 text-sm">
+              {[
+                "Yapay zeka ile anlık atık doğrulama",
+                "Okullar arası canlı liderlik tablosu",
+                "Vakıf için gerçek zamanlı etki paneli",
+              ].map((t) => (
+                <div key={t} className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span className="text-white/90">{t}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Sağ giriş formu */}
+          <div className="p-8 sm:p-10">
+            <div className="mb-6 flex items-center gap-2 lg:hidden">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-sky-500 text-white">
+                <Recycle className="h-6 w-6" strokeWidth={2.4} />
+              </div>
+              <p className="text-lg font-extrabold text-slate-800">
+                Sıfır Atık <span className="text-emerald-600">Hub</span>
+              </p>
+            </div>
+
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-800">
+              Giriş Yap
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Devam etmek için rolünü seç.
+            </p>
+
+            {/* Rol seçici */}
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              {ROLE_DEFS.map((r) => {
+                const active = role === r.role;
+                const Icon = r.icon;
+                return (
+                  <button
+                    key={r.role}
+                    type="button"
+                    onClick={() => selectRole(r.role)}
+                    className={`flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition-all ${
+                      active
+                        ? "border-transparent bg-gradient-to-br text-white shadow-md " +
+                          r.accent
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" strokeWidth={2.2} />
+                    <span className="text-[11px] font-bold leading-tight">
+                      {r.title.replace(" Girişi", "")}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
+              <def.icon className="h-3.5 w-3.5 text-slate-400" />
+              {def.desc}
+            </p>
+
+            <form onSubmit={submit} className="mt-5 space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                  E-posta
+                </label>
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100">
+                  <Mail className="h-4 w-4 text-slate-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setError("");
+                    }}
+                    placeholder="ornek@sifiratikvakfi.org"
+                    className="w-full bg-transparent py-2.5 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                  Şifre
+                </label>
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100">
+                  <Lock className="h-4 w-4 text-slate-400" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError("");
+                    }}
+                    placeholder="••••••••"
+                    className="w-full bg-transparent py-2.5 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <p className="flex items-center gap-1.5 text-xs font-medium text-rose-600">
+                  <AlertCircle className="h-3.5 w-3.5" /> {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r ${def.accent} px-4 py-3 text-sm font-bold text-white shadow-lg transition-all active:scale-[0.98] disabled:opacity-70`}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Giriş yapılıyor…
+                  </>
+                ) : (
+                  <>
+                    {def.title}
+                    <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500">
+              <span className="font-semibold text-slate-600">Demo hesabı:</span>{" "}
+              Seçilen rolün e-postası otomatik dolar, şifreye{" "}
+              <span className="font-semibold">herhangi bir değer</span> yazıp
+              giriş yapabilirsiniz. Yönetici:{" "}
+              <span className="font-mono text-slate-700">
+                yucel@sifiratikvakfi.org
+              </span>
+            </div>
+
+            <p className="mt-4 text-center text-[10px] text-slate-400">
+              Sıfır Atık Vakfı Özel Prototipidir
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -196,10 +494,17 @@ export default function Page() {
  *  ÜST BAŞLIK
  * ------------------------------------------------------------------ */
 
-function Header() {
+function Header({
+  session,
+  onLogout,
+}: {
+  session: Session;
+  onLogout: () => void;
+}) {
+  const def = roleDef(session.role);
   return (
     <header className="sticky top-0 z-30 border-b border-emerald-100/70 bg-white/80 backdrop-blur-md">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-sky-500 shadow-lg shadow-emerald-500/30">
             <Recycle className="h-6 w-6 text-white" strokeWidth={2.4} />
@@ -213,14 +518,28 @@ function Header() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-          </span>
-          <span className="text-xs font-semibold text-emerald-700">
-            Canlı MVP
-          </span>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Giriş yapan kullanıcı */}
+          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-3 shadow-sm">
+            <span
+              className={`flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br text-white ${def.accent}`}
+            >
+              <def.icon className="h-4 w-4" />
+            </span>
+            <div className="hidden leading-tight sm:block">
+              <p className="text-xs font-bold text-slate-700">{session.name}</p>
+              <p className="text-[10px] text-slate-400">{session.email}</p>
+            </div>
+          </div>
+          <button
+            onClick={onLogout}
+            title="Çıkış yap"
+            className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500 shadow-sm transition-colors hover:bg-rose-50 hover:text-rose-600"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Çıkış</span>
+          </button>
         </div>
       </div>
     </header>
@@ -240,14 +559,17 @@ const TABS: { key: TabKey; label: string; icon: typeof Smartphone }[] = [
 function TabBar({
   activeTab,
   setActiveTab,
+  allowedTabs,
 }: {
   activeTab: TabKey;
   setActiveTab: (t: TabKey) => void;
+  allowedTabs: TabKey[];
 }) {
+  const visible = TABS.filter((t) => allowedTabs.includes(t.key));
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/90 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md lg:inset-x-auto lg:left-1/2 lg:bottom-6 lg:w-auto lg:-translate-x-1/2 lg:rounded-2xl lg:border lg:px-2 lg:py-2">
       <div className="mx-auto flex max-w-md items-center justify-between gap-1 lg:max-w-none lg:gap-2">
-        {TABS.map(({ key, label, icon: Icon }) => {
+        {visible.map(({ key, label, icon: Icon }) => {
           const active = activeTab === key;
           return (
             <button
@@ -657,23 +979,31 @@ function Dashboard({
   totals,
   schools,
   activities,
+  session,
 }: {
   totals: { points: number; co2: number; bottles: number; kg: number };
   schools: School[];
   activities: ActivityItem[];
+  session: Session;
 }) {
+  const isAdmin = session.role === "admin";
   return (
     <div>
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-sky-700">
-            <ShieldCheck className="h-3.5 w-3.5" /> Vakıf Yönetimi
+            <ShieldCheck className="h-3.5 w-3.5" />{" "}
+            {isAdmin ? "Vakıf Yönetimi" : "Okul Yönetimi"}
           </span>
           <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-800">
-            “Yücel Abi” Yönetim Paneli
+            {isAdmin
+              ? `Hoş geldin, ${session.name} 👋`
+              : "Okul Performans Paneli"}
           </h2>
           <p className="mt-1 text-slate-600">
-            Türkiye geneli gerçek zamanlı etki göstergeleri.
+            {isAdmin
+              ? "Türkiye geneli tüm okul ve öğrenci verilerini buradan kontrol ediyorsun."
+              : "Okulunun gerçek zamanlı etki göstergeleri."}
           </p>
         </div>
         <div className="mt-3 flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm sm:mt-0">
