@@ -32,6 +32,16 @@ import {
   LogOut,
   ChevronRight,
   AlertCircle,
+  TreePine,
+  Waves,
+  Video,
+  ImageIcon,
+  Building2,
+  Globe2,
+  FileBarChart,
+  Filter,
+  Download,
+  UserRound,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ *
@@ -67,6 +77,49 @@ const WASTE_TYPES = [
   { label: "Kağıt / Karton", points: 8, co2: 0.05, bottles: 0, icon: "📦" },
 ];
 
+// Oyunlaştırma görevleri — atık yüklemenin ötesinde çevresel etkinlikler
+const EVENTS = [
+  {
+    key: "tree",
+    label: "Ağaç Dikme",
+    points: 50,
+    co2: 21,
+    trees: 1,
+    beachKg: 0,
+    icon: "🌳",
+    desc: "En yüksek puanlı görev. Diktiğin fidanın videosunu yükle.",
+  },
+  {
+    key: "beach",
+    label: "Sahil Temizliği",
+    points: 30,
+    co2: 2,
+    trees: 0,
+    beachKg: 3,
+    icon: "🏖️",
+    desc: "Sahil/deniz kıyısından topladığın atığı yükle.",
+  },
+] as const;
+
+// Yönetim paneli — atık türü dağılımı (Türkiye Sıfır Atık verileriyle orantılı)
+const WASTE_BREAKDOWN = [
+  { label: "Kağıt / Karton", pct: 44, color: "#0ea5e9" },
+  { label: "Organik & Diğer", pct: 31, color: "#10b981" },
+  { label: "Plastik", pct: 12, color: "#8b5cf6" },
+  { label: "Metal", pct: 8, color: "#f59e0b" },
+  { label: "Cam", pct: 5, color: "#ec4899" },
+];
+
+// Yönetim paneli — bölgesel kırılım
+const REGIONS = [
+  { region: "Marmara", pct: 100, schools: 84 },
+  { region: "İç Anadolu", pct: 82, schools: 61 },
+  { region: "Ege", pct: 74, schools: 52 },
+  { region: "Akdeniz", pct: 58, schools: 39 },
+  { region: "Karadeniz", pct: 41, schools: 27 },
+  { region: "G.doğu & Doğu", pct: 33, schools: 22 },
+];
+
 const STUDENT_NAMES = [
   "Ahmet",
   "Zeynep",
@@ -98,7 +151,7 @@ const formatNumber = (n: number) =>
  *  GİRİŞ / ROL TANIMLARI
  * ------------------------------------------------------------------ */
 
-type Role = "student" | "school" | "admin";
+type Role = "student" | "school" | "corporate" | "admin";
 
 type Session = { role: Role; email: string; name: string };
 
@@ -108,11 +161,12 @@ type RoleDef = {
   desc: string;
   icon: typeof GraduationCap;
   email: string; // demo hesabı
+  password: string; // demo şifresi
   accent: string; // gradient
   tabs: TabKey[]; // bu rolün görebileceği sekmeler
 };
 
-// Demo hesapları — prototipte herhangi bir şifre kabul edilir.
+// Demo hesapları
 const ROLE_DEFS: RoleDef[] = [
   {
     role: "student",
@@ -120,6 +174,7 @@ const ROLE_DEFS: RoleDef[] = [
     desc: "Atığını yükle, okuluna puan kazandır.",
     icon: GraduationCap,
     email: "ogrenci@kadikoyanadolu.k12.tr",
+    password: "ogrenci123",
     accent: "from-emerald-500 to-teal-500",
     tabs: ["student", "leaderboard"],
   },
@@ -129,15 +184,27 @@ const ROLE_DEFS: RoleDef[] = [
     desc: "Okulunun performansını ve sıralamayı izle.",
     icon: School2,
     email: "yonetim@kadikoyanadolu.k12.tr",
+    password: "okul123",
     accent: "from-sky-500 to-indigo-500",
     tabs: ["leaderboard", "dashboard"],
   },
   {
+    role: "corporate",
+    title: "Kurumsal Giriş",
+    desc: "Şirketin için ESG & karbon etki raporu.",
+    icon: Building2,
+    email: "surdurulebilirlik@firma.com.tr",
+    password: "kurumsal123",
+    accent: "from-amber-500 to-orange-500",
+    tabs: ["leaderboard", "dashboard"],
+  },
+  {
     role: "admin",
-    title: "Vakıf Yöneticisi Girişi",
+    title: "Vakıf Yönetici Girişi",
     desc: "Tüm Türkiye verilerini kontrol et.",
     icon: ShieldCheck,
-    email: "yucel@sifiratikvakfi.org",
+    email: "admin@sifiratikvakfi.org",
+    password: "admin123",
     accent: "from-violet-500 to-fuchsia-500",
     tabs: ["student", "leaderboard", "dashboard"],
   },
@@ -155,6 +222,8 @@ export default function Page() {
   const [schools, setSchools] = useState<School[]>(INITIAL_SCHOOLS);
   const [studentPoints, setStudentPoints] = useState<number>(120);
   const [studentItems, setStudentItems] = useState<number>(14);
+  const [trees, setTrees] = useState<number>(8420);
+  const [beachKg, setBeachKg] = useState<number>(5230);
   const [activities, setActivities] = useState<ActivityItem[]>([
     { id: 1, name: "Zeynep", school: "Kadıköy Anadolu Lisesi", text: "2 plastik şişe dönüştürdü", points: 20, time: "az önce" },
     { id: 2, name: "Mert", school: "Ankara Fen Lisesi", text: "3 cam şişe dönüştürdü", points: 45, time: "1 dk önce" },
@@ -210,16 +279,59 @@ export default function Page() {
     );
   };
 
+  // Çevresel etkinlik görevini (ağaç dikme / sahil temizliği) sisteme işler
+  const registerEvent = (
+    schoolId: number,
+    ev: (typeof EVENTS)[number],
+    studentName: string
+  ) => {
+    setSchools((prev) =>
+      prev.map((s) =>
+        s.id === schoolId
+          ? { ...s, points: s.points + ev.points, co2: s.co2 + ev.co2 }
+          : s
+      )
+    );
+    setTrees((t) => t + ev.trees);
+    setBeachKg((b) => b + ev.beachKg);
+    const school =
+      INITIAL_SCHOOLS.find((s) => s.id === schoolId)?.name ?? "Bir okul";
+    activityId.current += 1;
+    setActivities((prev) =>
+      [
+        {
+          id: activityId.current,
+          name: studentName,
+          school,
+          text:
+            ev.key === "tree"
+              ? "1 fidan dikti 🌳"
+              : `${ev.beachKg} kg sahil atığı topladı 🏖️`,
+          points: ev.points,
+          time: "az önce",
+        },
+        ...prev,
+      ].slice(0, 12)
+    );
+  };
+
   // Yönetim panelinde diğer okullardan "canlı" simüle aktivite akışı
   useEffect(() => {
     const interval = setInterval(() => {
       const school =
         INITIAL_SCHOOLS[Math.floor(Math.random() * INITIAL_SCHOOLS.length)];
-      const waste = WASTE_TYPES[Math.floor(Math.random() * WASTE_TYPES.length)];
       const name =
         STUDENT_NAMES[Math.floor(Math.random() * STUDENT_NAMES.length)];
-      registerRecycle(school.id, waste, name);
-    }, 4500);
+      // %25 ihtimalle çevresel etkinlik, kalanında atık dönüşümü
+      if (Math.random() < 0.25) {
+        const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+        registerEvent(school.id, ev, name);
+      } else {
+        const waste =
+          WASTE_TYPES[Math.floor(Math.random() * WASTE_TYPES.length)];
+        registerRecycle(school.id, waste, name);
+      }
+    }, 4000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -249,6 +361,7 @@ export default function Page() {
             setStudentItems={setStudentItems}
             studentSchool={studentSchool}
             onRecycle={registerRecycle}
+            onEvent={registerEvent}
           />
         )}
         {tab === "leaderboard" && <Leaderboard schools={schools} />}
@@ -258,6 +371,8 @@ export default function Page() {
             schools={schools}
             activities={activities}
             session={session}
+            trees={trees}
+            beachKg={beachKg}
           />
         )}
       </main>
@@ -298,18 +413,22 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
       return;
     }
     if (!password.trim()) {
-      setError("Lütfen şifrenizi girin. (Demo: herhangi bir şifre yeterli)");
+      setError("Lütfen şifrenizi girin.");
+      return;
+    }
+    if (password !== def.password) {
+      setError(`Şifre hatalı. Demo şifresi: ${def.password}`);
       return;
     }
     setLoading(true);
     setTimeout(() => {
-      const name =
-        role === "admin"
-          ? "Yücel Abi"
-          : role === "school"
-            ? "Okul Yönetimi"
-            : "Öğrenci";
-      onLogin({ role, email: email.trim(), name });
+      const names: Record<Role, string> = {
+        admin: "Vakıf Yönetimi",
+        school: "Okul Yönetimi",
+        corporate: "Kurumsal Hesap",
+        student: "Öğrenci",
+      };
+      onLogin({ role, email: email.trim(), name: names[role] });
     }, 800);
   };
 
@@ -373,11 +492,11 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
               Giriş Yap
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Devam etmek için rolünü seç.
+              Bireysel veya kurumsal — rolünü seç.
             </p>
 
             {/* Rol seçici */}
-            <div className="mt-5 grid grid-cols-3 gap-2">
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {ROLE_DEFS.map((r) => {
                 const active = role === r.role;
                 const Icon = r.icon;
@@ -395,7 +514,7 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
                   >
                     <Icon className="h-5 w-5" strokeWidth={2.2} />
                     <span className="text-[11px] font-bold leading-tight">
-                      {r.title.replace(" Girişi", "")}
+                      {r.title.replace(" Girişi", "").replace(" Giriş", "")}
                     </span>
                   </button>
                 );
@@ -471,12 +590,14 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
             </form>
 
             <div className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500">
-              <span className="font-semibold text-slate-600">Demo hesabı:</span>{" "}
-              Seçilen rolün e-postası otomatik dolar, şifreye{" "}
-              <span className="font-semibold">herhangi bir değer</span> yazıp
-              giriş yapabilirsiniz. Yönetici:{" "}
+              <span className="font-semibold text-slate-600">Demo giriş:</span>{" "}
+              Rol seçince e-posta otomatik dolar. Yönetici paneli için{" "}
               <span className="font-mono text-slate-700">
-                yucel@sifiratikvakfi.org
+                admin@sifiratikvakfi.org
+              </span>{" "}
+              / şifre{" "}
+              <span className="font-mono font-semibold text-slate-700">
+                admin123
               </span>
             </div>
 
@@ -551,9 +672,9 @@ function Header({
  * ------------------------------------------------------------------ */
 
 const TABS: { key: TabKey; label: string; icon: typeof Smartphone }[] = [
-  { key: "student", label: "Öğrenci Uygulaması", icon: Smartphone },
+  { key: "student", label: "Mobil Uygulama", icon: Smartphone },
   { key: "leaderboard", label: "Liderlik Tablosu", icon: Trophy },
-  { key: "dashboard", label: "Vakıf Paneli", icon: LayoutDashboard },
+  { key: "dashboard", label: "Yönetim Paneli", icon: LayoutDashboard },
 ];
 
 function TabBar({
@@ -607,6 +728,7 @@ function StudentScreen({
   setStudentItems,
   studentSchool,
   onRecycle,
+  onEvent,
 }: {
   studentPoints: number;
   setStudentPoints: React.Dispatch<React.SetStateAction<number>>;
@@ -618,12 +740,20 @@ function StudentScreen({
     waste: (typeof WASTE_TYPES)[number],
     studentName: string
   ) => void;
+  onEvent: (
+    schoolId: number,
+    ev: (typeof EVENTS)[number],
+    studentName: string
+  ) => void;
 }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [lastWaste, setLastWaste] = useState<(typeof WASTE_TYPES)[number] | null>(
     null
   );
+  const [bonus, setBonus] = useState(0); // video bonusu
+  const [capture, setCapture] = useState<"photo" | "video">("video");
   const [pointBump, setPointBump] = useState(false);
+  const [missionMsg, setMissionMsg] = useState<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
@@ -634,21 +764,32 @@ function StudentScreen({
   const handleUpload = () => {
     if (phase === "analyzing") return;
     const waste = WASTE_TYPES[Math.floor(Math.random() * WASTE_TYPES.length)];
+    // Video kanıtı +5 bonus puan (manipülasyona karşı daha güvenilir)
+    const b = capture === "video" ? 5 : 0;
     setLastWaste(waste);
+    setBonus(b);
     setPhase("analyzing");
 
     timers.current.push(
       setTimeout(() => {
         setPhase("success");
-        setStudentPoints((p) => p + waste.points);
+        setStudentPoints((p) => p + waste.points + b);
         setStudentItems((c) => c + 1);
         setPointBump(true);
         onRecycle(STUDENT_SCHOOL_ID, waste, "Sen");
         timers.current.push(setTimeout(() => setPointBump(false), 600));
-        // 4 sn sonra başlangıç durumuna dön
         timers.current.push(setTimeout(() => setPhase("idle"), 4200));
       }, 2000)
     );
+  };
+
+  const handleMission = (ev: (typeof EVENTS)[number]) => {
+    setStudentPoints((p) => p + ev.points);
+    setPointBump(true);
+    onEvent(STUDENT_SCHOOL_ID, ev, "Sen");
+    setMissionMsg(`${ev.icon} ${ev.label} tamamlandı! +${ev.points} puan`);
+    timers.current.push(setTimeout(() => setPointBump(false), 600));
+    timers.current.push(setTimeout(() => setMissionMsg(null), 3000));
   };
 
   return (
@@ -663,17 +804,89 @@ function StudentScreen({
           tanısın, okuluna <span className="text-sky-600">puan</span> kazandır.
         </h2>
         <p className="mt-4 max-w-md text-slate-600">
-          Öğrenci geri dönüştürdüğü atığın fotoğrafını yükler. Görüntü işleme
-          modeli atık türünü saniyeler içinde tanır, doğrular ve okul puanına
-          otomatik işler. Aşağıdaki telefonda{" "}
-          <strong className="text-slate-800">“Fotoğraf Çek / Atık Yükle”</strong>{" "}
-          butonunu deneyin.
+          Öğrenci geri dönüştürdüğü atığın <strong className="text-slate-800">fotoğrafını
+          veya videosunu</strong> yükler. Görüntü işleme modeli atık türünü
+          saniyeler içinde tanır, doğrular ve okul puanına otomatik işler.{" "}
+          <strong className="text-emerald-700">Video kanıtı daha güvenilir
+          olduğu için ekstra puan</strong> kazandırır.
         </p>
 
-        <div className="mt-6 grid grid-cols-3 gap-3">
+        {/* Foto / Video puanlama seçimi */}
+        <div className="mt-5 inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+          <button
+            onClick={() => setCapture("photo")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+              capture === "photo"
+                ? "bg-slate-800 text-white"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <ImageIcon className="h-4 w-4" /> Fotoğraf
+            <span className="text-[10px] opacity-80">standart</span>
+          </button>
+          <button
+            onClick={() => setCapture("video")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+              capture === "video"
+                ? "bg-gradient-to-r from-emerald-500 to-sky-500 text-white shadow"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Video className="h-4 w-4" /> Video
+            <span className="text-[10px] opacity-90">+5 bonus</span>
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 gap-3">
           <MiniStat icon={Award} label="Senin Puanın" value={formatNumber(studentPoints)} bump={pointBump} />
           <MiniStat icon={Recycle} label="Atığın" value={formatNumber(studentItems)} />
           <MiniStat icon={Leaf} label="Seviye" value="Yeşil Kahraman" small />
+        </div>
+
+        {/* Çevresel görevler */}
+        <div className="mt-6">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+            Bonus Görevler
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              onClick={() => handleMission(EVENTS[0])}
+              className="group flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-left transition-all hover:shadow-md"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+                <TreePine className="h-6 w-6" />
+              </span>
+              <span className="flex-1">
+                <span className="block text-sm font-bold text-slate-800">
+                  Ağaç Dikme
+                </span>
+                <span className="block text-xs text-emerald-700">
+                  En yüksek puan · +50
+                </span>
+              </span>
+            </button>
+            <button
+              onClick={() => handleMission(EVENTS[1])}
+              className="group flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-left transition-all hover:shadow-md"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
+                <Waves className="h-6 w-6" />
+              </span>
+              <span className="flex-1">
+                <span className="block text-sm font-bold text-slate-800">
+                  Sahil Temizliği
+                </span>
+                <span className="block text-xs text-sky-700">
+                  Deniz & kıyı · +30
+                </span>
+              </span>
+            </button>
+          </div>
+          {missionMsg && (
+            <div className="animate-pop-in mt-3 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 px-4 py-2 text-sm font-bold text-white shadow-lg">
+              <CheckCircle2 className="h-4 w-4" /> {missionMsg}
+            </div>
+          )}
         </div>
       </div>
 
@@ -712,7 +925,7 @@ function StudentScreen({
               {phase === "idle" && <IdleState />}
               {phase === "analyzing" && <AnalyzingState waste={lastWaste} />}
               {phase === "success" && lastWaste && (
-                <SuccessState waste={lastWaste} />
+                <SuccessState waste={lastWaste} bonus={bonus} />
               )}
             </div>
 
@@ -793,7 +1006,13 @@ function AnalyzingState({
   );
 }
 
-function SuccessState({ waste }: { waste: (typeof WASTE_TYPES)[number] }) {
+function SuccessState({
+  waste,
+  bonus,
+}: {
+  waste: (typeof WASTE_TYPES)[number];
+  bonus: number;
+}) {
   return (
     <div className="animate-pop-in flex flex-col items-center text-center">
       <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100">
@@ -807,10 +1026,15 @@ function SuccessState({ waste }: { waste: (typeof WASTE_TYPES)[number] }) {
       <div className="mt-4 flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-sky-500 px-4 py-3 text-white shadow-lg shadow-emerald-500/30">
         <Sparkles className="h-5 w-5" />
         <span className="text-sm font-bold">
-          Okulunuza +{waste.points} Puan Kazandırdınız!
+          Okulunuza +{waste.points + bonus} Puan Kazandırdınız!
         </span>
       </div>
-      <p className="mt-3 text-[11px] text-slate-500">
+      {bonus > 0 && (
+        <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
+          <Video className="h-3 w-3" /> Video kanıtı bonusu dahil (+{bonus})
+        </p>
+      )}
+      <p className="mt-2 text-[11px] text-slate-500">
         ~{waste.co2.toFixed(2)} kg CO₂ emisyonu engellendi 🌍
       </p>
     </div>
@@ -972,80 +1196,238 @@ function RankBadge({ rank }: { rank: number }) {
 }
 
 /* ------------------------------------------------------------------ *
- *  EKRAN 3 — "YÜCEL ABİ" VAKIF YÖNETİM PANELİ (DASHBOARD)
+ *  EKRAN 3 — VAKIF / KURUMSAL YÖNETİM PANELİ (DASHBOARD)
  * ------------------------------------------------------------------ */
+
+/* Role'e özel profil kartı — her panel farklı kimlik ve bilgi gösterir */
+function ProfileCard({ session }: { session: Session }) {
+  const def = roleDef(session.role);
+  const profiles: Record<
+    Role,
+    { title: string; subtitle: string; stats: { label: string; value: string }[] }
+  > = {
+    admin: {
+      title: "Sıfır Atık Vakfı — Yönetim",
+      subtitle: "Genel Yönetici · Tam Erişim",
+      stats: [
+        { label: "Kapsam", value: "Türkiye Geneli" },
+        { label: "Kayıtlı Okul/Kurum", value: "250+" },
+        { label: "Yetki", value: "Tam Erişim" },
+      ],
+    },
+    corporate: {
+      title: "Demo Sürdürülebilirlik A.Ş.",
+      subtitle: "Kurumsal Hesap · ESG Programı",
+      stats: [
+        { label: "Çalışan", value: "1.250" },
+        { label: "ESG Skoru", value: "A" },
+        { label: "Karbon Hedefi", value: "%30 ↓" },
+      ],
+    },
+    school: {
+      title: "Kadıköy Anadolu Lisesi",
+      subtitle: "Okul Yönetimi · İstanbul",
+      stats: [
+        { label: "Sıralama", value: "#1" },
+        { label: "Öğrenci", value: "1.240" },
+        { label: "Toplam Puan", value: "45.000+" },
+      ],
+    },
+    student: {
+      title: "Öğrenci",
+      subtitle: "Bireysel Hesap",
+      stats: [],
+    },
+  };
+  const p = profiles[session.role];
+  return (
+    <div className="mt-5 overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
+      <div className={`h-1.5 bg-gradient-to-r ${def.accent}`} />
+      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+        <div
+          className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${def.accent}`}
+        >
+          <def.icon className="h-7 w-7" strokeWidth={2.2} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-lg font-extrabold text-slate-800">
+            {p.title}
+          </p>
+          <p className="text-sm text-slate-500">{p.subtitle}</p>
+          <p className="mt-0.5 text-xs text-slate-400">{session.email}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {p.stats.map((s) => (
+            <div
+              key={s.label}
+              className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-2 text-center"
+            >
+              <p className="text-base font-extrabold text-slate-800">
+                {s.value}
+              </p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                {s.label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Dashboard({
   totals,
   schools,
   activities,
   session,
+  trees,
+  beachKg,
 }: {
   totals: { points: number; co2: number; bottles: number; kg: number };
   schools: School[];
   activities: ActivityItem[];
   session: Session;
+  trees: number;
+  beachKg: number;
 }) {
   const isAdmin = session.role === "admin";
+  const isCorporate = session.role === "corporate";
+  const [range, setRange] = useState("Bu Ay");
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2600);
+  };
+
+  const heading = isAdmin
+    ? "Vakıf Yönetim Paneli"
+    : isCorporate
+      ? "Kurumsal Sürdürülebilirlik Paneli"
+      : "Okul Performans Paneli";
+  const sub = isAdmin
+    ? "Türkiye geneli tüm okul, öğrenci ve kurum verilerini tek ekrandan yönet."
+    : isCorporate
+      ? "Şirketinin ESG & karbon ayak izi etkisini canlı izle ve raporla."
+      : "Okulunun gerçek zamanlı etki göstergeleri.";
+  const tagLabel = isAdmin
+    ? "Vakıf Yönetimi"
+    : isCorporate
+      ? "Kurumsal Hesap"
+      : "Okul Yönetimi";
+
   return (
     <div>
+      {/* Üst başlık + veri araç çubuğu */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-sky-700">
-            <ShieldCheck className="h-3.5 w-3.5" />{" "}
-            {isAdmin ? "Vakıf Yönetimi" : "Okul Yönetimi"}
+            <ShieldCheck className="h-3.5 w-3.5" /> {tagLabel}
           </span>
           <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-800">
-            {isAdmin
-              ? `Hoş geldin, ${session.name} 👋`
-              : "Okul Performans Paneli"}
+            {heading}
           </h2>
-          <p className="mt-1 text-slate-600">
-            {isAdmin
-              ? "Türkiye geneli tüm okul ve öğrenci verilerini buradan kontrol ediyorsun."
-              : "Okulunun gerçek zamanlı etki göstergeleri."}
-          </p>
+          <p className="mt-1 max-w-2xl text-slate-600">{sub}</p>
         </div>
         <div className="mt-3 flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm sm:mt-0">
-          <Activity className="h-3.5 w-3.5" /> Canlı veri akışı aktif
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          </span>
+          Canlı veri akışı
         </div>
       </div>
 
+      {/* Role özel profil kartı */}
+      <ProfileCard session={session} />
+
+      {/* Veri araç çubuğu — filtre + dışa aktarma */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-2.5 shadow-sm">
+        <div className="flex items-center gap-1">
+          <Filter className="ml-1 mr-1 h-4 w-4 text-slate-400" />
+          {["Bugün", "Bu Hafta", "Bu Ay", "Yıllık"].map((r) => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                range === r
+                  ? "bg-slate-800 text-white"
+                  : "text-slate-500 hover:bg-slate-100"
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => showToast("📄 ESG & karbon raporu hazırlanıyor…")}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 active:scale-95"
+          >
+            <FileBarChart className="h-3.5 w-3.5" /> Rapor (PDF)
+          </button>
+          <button
+            onClick={() => showToast("⬇️ Veri (CSV/Excel) dışa aktarılıyor…")}
+            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-sky-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-transform active:scale-95"
+          >
+            <Download className="h-3.5 w-3.5" /> Veri Dışa Aktar
+          </button>
+        </div>
+      </div>
+
+      {toast && (
+        <div className="animate-pop-in fixed bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-2xl lg:bottom-28">
+          {toast}
+        </div>
+      )}
+
       {/* Büyük metrik kartları */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           icon={Recycle}
-          label="Toplam Kurtarılan Atık"
+          label="Kurtarılan Atık"
           value={`${formatNumber(totals.kg)} kg`}
           trend="+12,4% bu ay"
           gradient="from-emerald-500 to-teal-600"
         />
         <MetricCard
           icon={Users}
-          label="Aktif Öğrenci Sayısı"
+          label="Aktif Katılımcı"
           value={formatNumber(48250)}
-          trend="+1.180 yeni katılım"
+          trend="+1.180 yeni"
           gradient="from-sky-500 to-indigo-600"
         />
         <MetricCard
           icon={Cloud}
-          label="Engellenen Karbon Emisyonu"
-          value={`${formatNumber(totals.co2)} kg CO₂`}
+          label="Engellenen CO₂"
+          value={`${formatNumber(totals.co2)} kg`}
           trend="≈ 720 ağaç eşdeğeri"
           gradient="from-violet-500 to-fuchsia-600"
+        />
+        <MetricCard
+          icon={TreePine}
+          label="Dikilen Ağaç"
+          value={formatNumber(trees)}
+          trend={`+ ${formatNumber(beachKg)} kg sahil temizliği`}
+          gradient="from-amber-500 to-orange-600"
         />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-5">
-        {/* Grafik */}
         <div className="lg:col-span-3">
           <WeeklyChart />
         </div>
-
-        {/* Canlı aktivite akışı */}
         <div className="lg:col-span-2">
           <ActivityFeed activities={activities} />
         </div>
+      </div>
+
+      {/* Veri kırılımları: atık türü + bölge + segment */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <WasteDonut />
+        <RegionBreakdown />
+        <SegmentSplit />
       </div>
 
       {/* En iyi okullar mini tablo */}
@@ -1054,6 +1436,109 @@ function Dashboard({
       <p className="mt-8 text-center text-xs text-slate-400">
         Sıfır Atık Vakfı Özel Prototipidir
       </p>
+    </div>
+  );
+}
+
+/* Atık türü dağılımı — conic-gradient donut */
+function WasteDonut() {
+  let acc = 0;
+  const stops = WASTE_BREAKDOWN.map((w) => {
+    const from = acc;
+    acc += w.pct;
+    return `${w.color} ${from}% ${acc}%`;
+  }).join(", ");
+  return (
+    <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+      <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
+        <Recycle className="h-4 w-4 text-emerald-500" /> Atık Türü Dağılımı
+      </h3>
+      <div className="mt-4 flex items-center gap-5">
+        <div
+          className="relative h-28 w-28 shrink-0 rounded-full"
+          style={{ background: `conic-gradient(${stops})` }}
+        >
+          <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full bg-white">
+            <span className="text-lg font-extrabold text-slate-800">5</span>
+            <span className="text-[9px] text-slate-400">tür</span>
+          </div>
+        </div>
+        <div className="flex-1 space-y-1.5">
+          {WASTE_BREAKDOWN.map((w) => (
+            <div key={w.label} className="flex items-center gap-2 text-xs">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ background: w.color }}
+              />
+              <span className="flex-1 text-slate-600">{w.label}</span>
+              <span className="font-bold text-slate-800">%{w.pct}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Bölgesel kırılım */
+function RegionBreakdown() {
+  return (
+    <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+      <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
+        <Globe2 className="h-4 w-4 text-sky-500" /> Bölgesel Katılım
+      </h3>
+      <div className="mt-4 space-y-2.5">
+        {REGIONS.map((r) => (
+          <div key={r.region}>
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-slate-600">{r.region}</span>
+              <span className="font-bold text-slate-700">{r.schools} okul</span>
+            </div>
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500"
+                style={{ width: `${r.pct}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Bireysel / Kurumsal segment kırılımı */
+function SegmentSplit() {
+  const segs = [
+    { label: "Bireysel & Okullar", pct: 68, icon: UserRound, color: "from-emerald-500 to-teal-500", note: "Öğrenci + vatandaş" },
+    { label: "Kurumsal", pct: 32, icon: Building2, color: "from-amber-500 to-orange-500", note: "Şirket çalışanları" },
+  ];
+  return (
+    <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+      <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
+        <Users className="h-4 w-4 text-violet-500" /> Katılımcı Segmenti
+      </h3>
+      <p className="mt-1 text-xs text-slate-500">
+        Sistem hem bireysel hem kurumsal kullanıcıya hitap eder.
+      </p>
+      <div className="mt-4 flex h-3 overflow-hidden rounded-full">
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-500" style={{ width: "68%" }} />
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500" style={{ width: "32%" }} />
+      </div>
+      <div className="mt-4 space-y-3">
+        {segs.map((s) => (
+          <div key={s.label} className="flex items-center gap-3">
+            <span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${s.color} text-white`}>
+              <s.icon className="h-5 w-5" />
+            </span>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-slate-800">{s.label}</p>
+              <p className="text-[11px] text-slate-400">{s.note}</p>
+            </div>
+            <span className="text-lg font-extrabold text-slate-800">%{s.pct}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
