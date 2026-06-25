@@ -48,7 +48,7 @@
   /* İSTATİSTİK ŞERİDİ */
   .statband{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px;}
   .stat{padding:20px 16px;border-radius:16px;background:linear-gradient(135deg,#ecfdf5,#eff6ff);border:1px solid #d1fae5;text-align:center;}
-  .stat b{font-size:25pt;font-weight:800;color:var(--emerald-d);display:block;line-height:1;}
+  .stat b{font-size:25pt;font-weight:800;background:linear-gradient(135deg,var(--emerald),var(--sky));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;display:block;line-height:1;}
   .stat span{font-size:10pt;color:var(--slate);font-weight:600;display:block;margin-top:8px;}
   .source{margin-top:14px;font-size:8pt;color:var(--muted);}
 
@@ -174,9 +174,7 @@
   .closing .note{margin-top:14px;font-size:9.5pt;color:#94a3b8;}
 </style>
 </head>
-<body>
-
-<!-- 1 KAPAK -->
+<body><!-- 1 KAPAK -->
 <section class="slide cover">
   <div class="deco1"></div><div class="deco2"></div>
   <div class="logo">♻️</div>
@@ -380,53 +378,6 @@
     <div class="bmc"><span class="e">🌐</span><h3>Uluslararası Lisans</h3><p>BM ağı üzerinden yurt dışı ihracat & lisanslama.</p><span class="rev">Global ölçek</span></div>
   </div>
   <div class="footmark">Sıfır Atık Vakfı Özel Prototipidir</div><div class="pagenum">10</div>
-</section>
-
-<!-- 11 YOL HARİTASI -->
-<section class="slide">
-  <div class="brandbar"></div><div class="logo-sm"><span class="d"></span> Sıfır Atık Hub</div>
-  <span class="kicker">◆ Yol Haritası</span>
-  <h1 class="title">Prototipten küresel ölçeğe</h1>
-  <div class="road">
-    <div class="ph p1"><div class="tag">Faz 1 — Şimdi</div><h3>Çalışan MVP</h3><ul><li>Bireysel + kurumsal giriş</li><li>3 modüllü canlı demo</li><li>Güçlü yönetim paneli</li></ul></div>
-    <div class="ph p2"><div class="tag">Faz 2 — 3-6 Ay</div><h3>Pilot</h3><ul><li>Gerçek YZ atık tanıma</li><li>10-20 okulda saha pilotu</li><li>Ödül mağazası & rozetler</li></ul></div>
-    <div class="ph p3"><div class="tag">Faz 3 — 6-12 Ay</div><h3>Ölçek</h3><ul><li>İl/ilçe turnuvaları</li><li>Kurumsal ESG paketi</li><li>Belediye & sponsor ağı</li></ul></div>
-    <div class="ph p4"><div class="tag">Faz 4 — 12 Ay+</div><h3>İnovasyon & İhracat</h3><ul><li>YZ akıllı konteynır</li><li>Sahil temizleme robotu/drone</li><li>BM ağıyla global ihracat</li></ul></div>
-  </div>
-  <div class="footmark">Sıfır Atık Vakfı Özel Prototipidir</div><div class="pagenum">11</div>
-</section>
-
-<!-- 12 HEDEF ETKİ -->
-<section class="slide">
-  <div class="brandbar"></div><div class="logo-sm"><span class="d"></span> Sıfır Atık Hub</div>
-  <span class="kicker">◆ Hedeflenen Etki</span>
-  <h1 class="title">Ölçülebilir, büyüyen, raporlanabilir</h1>
-  <p class="lead">Pilot dönem hedef göstergeleri (örnek projeksiyon) — her veri panelde canlı izlenir.</p>
-  <div class="statband">
-    <div class="stat"><b>250+</b><span>Katılımcı Okul/Kurum</span></div>
-    <div class="stat"><b>48.000+</b><span>Aktif Katılımcı</span></div>
-    <div class="stat"><b>165.000</b><span>Geri Dönüştürülen Şişe</span></div>
-    <div class="stat"><b>14,6 ton</b><span>Engellenen CO₂ (~720 ağaç)</span></div>
-  </div>
-  <div class="grid g2" style="margin-top:16px;">
-    <div class="card" style="background:var(--soft);"><h3 style="font-size:12pt;">🌳 Çevresel Eşdeğer</h3><p style="font-size:10.5pt;">Engellenen karbon ~720 ağacın yıllık tuttuğu CO₂’ye denk. Oyunlaştırmayla bu, öğrencinin günlük alışkanlığına dönüşerek katlanır.</p></div>
-    <div class="card" style="background:var(--soft);"><h3 style="font-size:12pt;">📊 Kuruma Değer</h3><p style="font-size:10.5pt;">Vakıf için dünyaya gösterilebilen canlı etki verisi; kurumlar için doğrulanmış ESG/karbon raporu ve marka itibarı.</p></div>
-  </div>
-  <div class="footmark">Sıfır Atık Vakfı Özel Prototipidir</div><div class="pagenum">12</div>
-</section>
-
-<!-- 13 KAPANIŞ -->
-<section class="slide closing">
-  <div class="deco1"></div>
-  <h1>Birlikte <span>sıfır atığa.</span></h1>
-  <p class="sub" style="font-size:14pt;color:#cbd5e1;margin-top:13px;">Çalışan prototipi şimdi canlı deneyin — sonra birlikte ölçekleyelim.</p>
-  <div class="links">
-    <div class="lk"><small>Canlı Demo</small><b>sifir-atik-proje.vercel.app</b></div>
-    <div class="lk"><small>Kaynak Kod</small><b>github.com/ymzozan/sifir-atik-hub</b></div>
-    <div class="lk"><small>Yönetici Girişi</small><b>admin@sifiratikvakfi.org · admin123</b></div>
-  </div>
-  <div class="note">Demo: rol seçilince e-posta otomatik dolar. Yönetici paneli için şifre <b>admin123</b>.</div>
-  <div class="footmark" style="color:#64748b;">Sıfır Atık Vakfı Özel Prototipidir</div>
 </section>
 
 </body>
