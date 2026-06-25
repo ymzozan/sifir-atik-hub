@@ -450,24 +450,27 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
                     Sıfır Atık Hub
                   </p>
                   <p className="text-xs opacity-90">
-                    Yapay Zeka Destekli Oyunlaştırma
+                    Gençlerle Sıfır Atık Platformu
                   </p>
                 </div>
               </div>
-              <h2 className="mt-10 text-3xl font-extrabold leading-snug">
-                Türkiye’nin okullarını
-                <br /> sıfır atıkta birleştiriyoruz.
+              <p className="mt-9 inline-flex rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-50 backdrop-blur">
+                Dünya Ortak Evimiz
+              </p>
+              <h2 className="mt-3 text-3xl font-extrabold leading-snug">
+                Sıfır atık hareketini
+                <br /> gençlerle büyütüyoruz.
               </h2>
               <p className="mt-4 max-w-xs text-sm text-white/90">
-                Rolünü seç, giriş yap ve sana özel paneli keşfet. Yöneticiler
-                tüm Türkiye verisini tek ekrandan kontrol eder.
+                Öğrenci atığını yükler, görev yapar, okulu için yarışır. Vakıf
+                ise tüm Türkiye’nin etkisini tek ekrandan izler.
               </p>
             </div>
             <div className="relative mt-10 space-y-3 text-sm">
               {[
-                "Yapay zeka ile anlık atık doğrulama",
-                "Okullar arası canlı liderlik tablosu",
-                "Vakıf için gerçek zamanlı etki paneli",
+                "Tek dokunuşla atık yükleme — kolay ve eğlenceli",
+                "Sahil temizliğiyle Mavi Vatan’a katkı",
+                "Vakıf için tüm Türkiye tek canlı panelde",
               ].map((t) => (
                 <div key={t} className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -1706,8 +1709,8 @@ function Footer() {
     <div className="mx-auto mb-24 w-full max-w-7xl px-4 sm:px-6 lg:mb-0">
       <div className="flex flex-col items-center gap-1 rounded-2xl border border-emerald-100 bg-white/70 px-4 py-3 text-center backdrop-blur sm:flex-row sm:justify-between sm:text-left">
         <p className="text-xs font-semibold text-slate-600">
-          <span className="text-emerald-600">Sıfır Atık Hub</span> — Yapay Zeka
-          Destekli Okullar Arası Oyunlaştırma Modeli
+          <span className="text-emerald-600">Sıfır Atık Hub</span> — Sıfır Atık
+          Hareketini Gençlerle Büyüten Dijital Platform
         </p>
         <p className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500">
           <Leaf className="h-3.5 w-3.5 text-emerald-500" /> Sıfır Atık Vakfı
