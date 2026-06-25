@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   Smartphone,
   Trophy,
@@ -707,7 +707,7 @@ function TabBar({
 }) {
   const visible = TABS.filter((t) => allowedTabs.includes(t.key));
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/90 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md lg:inset-x-auto lg:left-1/2 lg:bottom-6 lg:w-auto lg:-translate-x-1/2 lg:rounded-2xl lg:border lg:px-2 lg:py-2">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/90 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md lg:inset-x-auto lg:left-1/2 lg:bottom-9 lg:w-auto lg:-translate-x-1/2 lg:rounded-2xl lg:border lg:px-2 lg:py-2 lg:shadow-xl">
       <div className="mx-auto flex max-w-md items-center justify-between gap-1 lg:max-w-none lg:gap-2">
         {visible.map(({ key, label, icon: Icon }) => {
           const active = activeTab === key;
@@ -1133,9 +1133,30 @@ function Leaderboard({ schools }: { schools: School[] }) {
         {ranked.map((school, i) => {
           const rank = i + 1;
           const isTop = rank === 1;
+          const third = Math.ceil(ranked.length / 3) || 1;
+          const leagueHead =
+            rank === 1
+              ? { name: "1. Lig", tag: "Şampiyonlar Ligi", badge: "bg-amber-100 text-amber-700" }
+              : rank === third + 1
+              ? { name: "2. Lig", tag: "Yükselme Hattı", badge: "bg-sky-100 text-sky-700" }
+              : rank === third * 2 + 1
+              ? { name: "3. Lig", tag: "Gelişim Ligi", badge: "bg-slate-100 text-slate-600" }
+              : null;
           return (
+            <Fragment key={school.id}>
+              {leagueHead && (
+                <div className={`flex items-center gap-2 ${rank === 1 ? "" : "pt-4"}`}>
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold ${leagueHead.badge}`}
+                  >
+                    <Trophy className="h-3.5 w-3.5" /> {leagueHead.name}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400">
+                    {leagueHead.tag}
+                  </span>
+                </div>
+              )}
             <div
-              key={school.id}
               className={`relative overflow-hidden rounded-2xl border p-4 shadow-sm transition-all ${
                 isTop
                   ? "border-amber-200 bg-gradient-to-r from-amber-50 to-white"
@@ -1186,6 +1207,7 @@ function Leaderboard({ schools }: { schools: School[] }) {
                 </div>
               </div>
             </div>
+            </Fragment>
           );
         })}
       </div>
@@ -1942,6 +1964,12 @@ const SOON_TECH = [
   },
 ];
 
+const SPORTS_EVENTS = [
+  { icon: "⚽", name: "Okullar Arası Futbol Turnuvası", date: "12 Temmuz 2026", city: "İstanbul", teams: 16 },
+  { icon: "🏐", name: "Voleybol Şampiyonası", date: "19 Temmuz 2026", city: "Ankara", teams: 12 },
+  { icon: "🏀", name: "Basketbol Kupası", date: "2 Ağustos 2026", city: "İzmir", teams: 10 },
+];
+
 function Matchup({ a, b }: { a: School; b: School }) {
   const aWin = a.points >= b.points;
   const row = (s: School, win: boolean) => (
@@ -1965,6 +1993,7 @@ function Matchup({ a, b }: { a: School; b: School }) {
 }
 
 function TournamentScreen({ schools }: { schools: School[] }) {
+  const [joined, setJoined] = useState<number[]>([]);
   const ranked = [...schools].sort((a, b) => b.points - a.points);
   const top4 = ranked.slice(0, 4);
   const win = (a: School, b: School) => (a.points >= b.points ? a : b);
@@ -2022,6 +2051,54 @@ function TournamentScreen({ schools }: { schools: School[] }) {
 
       <div>
         <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
+          <Trophy className="h-4 w-4 text-amber-500" /> Yaklaşan Spor Turnuvaları
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {SPORTS_EVENTS.map((ev, i) => {
+            const isJoined = joined.includes(i);
+            return (
+              <div
+                key={ev.name}
+                className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm"
+              >
+                <div className="text-3xl">{ev.icon}</div>
+                <h4 className="mt-3 text-sm font-extrabold text-slate-800">
+                  {ev.name}
+                </h4>
+                <p className="mt-1 text-xs text-slate-500">
+                  {ev.date} · {ev.city}
+                </p>
+                <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-400">
+                  <Users className="h-3.5 w-3.5" /> {ev.teams} okul takımı
+                </p>
+                <button
+                  onClick={() =>
+                    setJoined((p) =>
+                      isJoined ? p.filter((x) => x !== i) : [...p, i]
+                    )
+                  }
+                  className={`mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+                    isJoined
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-gradient-to-br from-emerald-500 to-sky-500 text-white hover:scale-[1.02]"
+                  }`}
+                >
+                  {isJoined ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" /> Katıldın
+                    </>
+                  ) : (
+                    "Katıl"
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
           <Sparkles className="h-4 w-4 text-emerald-500" /> Çok Yakında — Yarının
           Çevre Teknolojisi
         </h3>
@@ -2059,7 +2136,7 @@ function TournamentScreen({ schools }: { schools: School[] }) {
 
 function Footer() {
   return (
-    <div className="mx-auto mb-24 w-full max-w-7xl px-4 sm:px-6 lg:mb-0">
+    <div className="mx-auto mb-28 w-full max-w-7xl px-4 sm:px-6 lg:mb-28">
       <div className="flex flex-col items-center gap-1 rounded-2xl border border-emerald-100 bg-white/70 px-4 py-3 text-center backdrop-blur sm:flex-row sm:justify-between sm:text-left">
         <p className="text-xs font-semibold text-slate-600">
           <span className="text-emerald-600">Sıfır Atık Hub</span> — Sıfır Atık
