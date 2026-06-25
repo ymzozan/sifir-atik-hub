@@ -49,7 +49,7 @@ import {
  *  Sıfır Atık Vakfı Özel Prototipidir
  * ------------------------------------------------------------------ */
 
-type TabKey = "student" | "leaderboard" | "dashboard";
+type TabKey = "student" | "quiz" | "tournament" | "leaderboard" | "dashboard";
 
 type School = {
   id: number;
@@ -176,7 +176,7 @@ const ROLE_DEFS: RoleDef[] = [
     email: "ogrenci@kadikoyanadolu.k12.tr",
     password: "ogrenci123",
     accent: "from-emerald-500 to-teal-500",
-    tabs: ["student", "leaderboard"],
+    tabs: ["student", "quiz", "tournament", "leaderboard"],
   },
   {
     role: "school",
@@ -186,7 +186,7 @@ const ROLE_DEFS: RoleDef[] = [
     email: "yonetim@kadikoyanadolu.k12.tr",
     password: "okul123",
     accent: "from-sky-500 to-indigo-500",
-    tabs: ["leaderboard", "dashboard"],
+    tabs: ["tournament", "leaderboard", "dashboard"],
   },
   {
     role: "corporate",
@@ -206,7 +206,7 @@ const ROLE_DEFS: RoleDef[] = [
     email: "admin@sifiratikvakfi.org",
     password: "admin123",
     accent: "from-violet-500 to-fuchsia-500",
-    tabs: ["student", "leaderboard", "dashboard"],
+    tabs: ["student", "quiz", "tournament", "leaderboard", "dashboard"],
   },
 ];
 
@@ -315,6 +315,16 @@ export default function Page() {
     );
   };
 
+  // Quiz / yarışmadan kazanılan puanı öğrenciye ve okuluna işler
+  const awardQuizPoints = (pts: number) => {
+    setStudentPoints((p) => p + pts);
+    setSchools((prev) =>
+      prev.map((s) =>
+        s.id === STUDENT_SCHOOL_ID ? { ...s, points: s.points + pts } : s
+      )
+    );
+  };
+
   // Yönetim panelinde diğer okullardan "canlı" simüle aktivite akışı
   useEffect(() => {
     const interval = setInterval(() => {
@@ -364,6 +374,10 @@ export default function Page() {
             onEvent={registerEvent}
           />
         )}
+        {tab === "quiz" && (
+          <QuizScreen studentSchool={studentSchool} onAward={awardQuizPoints} />
+        )}
+        {tab === "tournament" && <TournamentScreen schools={schools} />}
         {tab === "leaderboard" && <Leaderboard schools={schools} />}
         {tab === "dashboard" && (
           <Dashboard
@@ -676,6 +690,8 @@ function Header({
 
 const TABS: { key: TabKey; label: string; icon: typeof Smartphone }[] = [
   { key: "student", label: "Mobil Uygulama", icon: Smartphone },
+  { key: "quiz", label: "Quiz", icon: Award },
+  { key: "tournament", label: "Turnuva", icon: Medal },
   { key: "leaderboard", label: "Liderlik Tablosu", icon: Trophy },
   { key: "dashboard", label: "Yönetim Paneli", icon: LayoutDashboard },
 ];
@@ -1695,6 +1711,343 @@ function TopSchools({ schools }: { schools: School[] }) {
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  EKRAN — BİLİNÇ & QUIZ YARIŞMASI (çalışan MVP)
+ * ------------------------------------------------------------------ */
+
+type QuizQ = { q: string; options: string[]; correct: number; fact: string };
+
+const QUIZ_QUESTIONS: QuizQ[] = [
+  {
+    q: "Bir plastik şişenin doğada yok olması ne kadar sürer?",
+    options: ["~10 yıl", "~100 yıl", "~450 yıl", "~1000 yıl"],
+    correct: 2,
+    fact: "Plastik şişeler doğada ortalama 450 yıl kalır — bu yüzden geri dönüşüm hayati önemde.",
+  },
+  {
+    q: "Türkiye'de Sıfır Atık seferberliği hangi yıl başladı?",
+    options: ["2010", "2017", "2020", "2023"],
+    correct: 1,
+    fact: "Sıfır Atık Projesi 2017'de Emine Erdoğan'ın himayesinde başlatıldı.",
+  },
+  {
+    q: "Cam, kalitesini kaybetmeden kaç kez geri dönüştürülebilir?",
+    options: ["1 kez", "5 kez", "Sınırsız", "10 kez"],
+    correct: 2,
+    fact: "Cam sonsuz kez geri dönüştürülebilir ve hiç kalite kaybetmez.",
+  },
+  {
+    q: "Geri dönüştürülen 1 ton kâğıt yaklaşık kaç ağacı kurtarır?",
+    options: ["3 ağaç", "17 ağaç", "50 ağaç", "100 ağaç"],
+    correct: 1,
+    fact: "1 ton kâğıdın geri dönüşümü yaklaşık 17 ağacı kurtarır.",
+  },
+  {
+    q: "Aşağıdakilerden hangisi normal geri dönüşüm kutusuna ATILMAMALI?",
+    options: ["Plastik şişe", "Atık pil", "Karton kutu", "Cam kavanoz"],
+    correct: 1,
+    fact: "Atık piller tehlikeli atıktır; özel pil toplama kutularına atılmalıdır.",
+  },
+];
+
+const PTS_PER_Q = 20;
+
+function QuizScreen({
+  studentSchool,
+  onAward,
+}: {
+  studentSchool: School;
+  onAward: (pts: number) => void;
+}) {
+  const [idx, setIdx] = useState(0);
+  const [picked, setPicked] = useState<number | null>(null);
+  const [score, setScore] = useState(0);
+  const [earned, setEarned] = useState(0);
+  const [done, setDone] = useState(false);
+
+  const q = QUIZ_QUESTIONS[idx];
+  const isLast = idx === QUIZ_QUESTIONS.length - 1;
+
+  const pick = (i: number) => {
+    if (picked !== null) return;
+    setPicked(i);
+    if (i === q.correct) {
+      setScore((s) => s + 1);
+      setEarned((e) => e + PTS_PER_Q);
+    }
+  };
+
+  const next = () => {
+    if (isLast) {
+      onAward(earned);
+      setDone(true);
+    } else {
+      setIdx((i) => i + 1);
+      setPicked(null);
+    }
+  };
+
+  const restart = () => {
+    setIdx(0);
+    setPicked(null);
+    setScore(0);
+    setEarned(0);
+    setDone(false);
+  };
+
+  if (done) {
+    return (
+      <div className="mx-auto max-w-xl">
+        <div className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
+          <div className="bg-gradient-to-br from-emerald-500 to-sky-500 px-6 py-8 text-center text-white">
+            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20">
+              <Award className="h-9 w-9" strokeWidth={2.2} />
+            </div>
+            <p className="text-sm font-semibold opacity-90">Yarışma Tamamlandı</p>
+            <p className="mt-1 text-4xl font-extrabold">
+              {score}/{QUIZ_QUESTIONS.length}
+            </p>
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-sm font-bold">
+              <Sparkles className="h-4 w-4" /> +{earned} puan kazandın
+            </p>
+          </div>
+          <div className="px-6 py-5 text-center">
+            <p className="text-sm text-slate-600">
+              Puanların{" "}
+              <span className="font-bold text-emerald-700">
+                {studentSchool.name}
+              </span>{" "}
+              hesabına işlendi.
+            </p>
+            <button
+              onClick={restart}
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-sky-500 px-6 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-105"
+            >
+              <Zap className="h-4 w-4" /> Tekrar Oyna
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-xl">
+      <div className="mb-4">
+        <p className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700">
+          <Award className="h-3.5 w-3.5" /> Bilinç & Quiz Yarışması
+        </p>
+        <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-800">
+          Çevreni ne kadar tanıyorsun?
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Her doğru cevap <b>+{PTS_PER_Q} puan</b> — okullar arası bilinç yarışı.
+        </p>
+      </div>
+
+      <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-between text-xs font-semibold text-slate-500">
+          <span>
+            Soru {idx + 1} / {QUIZ_QUESTIONS.length}
+          </span>
+          <span className="text-emerald-600">{earned} puan</span>
+        </div>
+        <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all"
+            style={{
+              width: `${((idx + (picked !== null ? 1 : 0)) / QUIZ_QUESTIONS.length) * 100}%`,
+            }}
+          />
+        </div>
+
+        <h3 className="text-lg font-bold leading-snug text-slate-800">{q.q}</h3>
+
+        <div className="mt-4 space-y-2.5">
+          {q.options.map((opt, i) => {
+            const isCorrect = i === q.correct;
+            const isPicked = i === picked;
+            let cls =
+              "border-slate-200 bg-white text-slate-700 hover:border-emerald-300";
+            if (picked !== null) {
+              if (isCorrect)
+                cls = "border-emerald-400 bg-emerald-50 text-emerald-800";
+              else if (isPicked)
+                cls = "border-rose-300 bg-rose-50 text-rose-700";
+              else cls = "border-slate-200 bg-white text-slate-400";
+            }
+            return (
+              <button
+                key={i}
+                onClick={() => pick(i)}
+                disabled={picked !== null}
+                className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all ${cls}`}
+              >
+                <span>{opt}</span>
+                {picked !== null && isCorrect && (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                )}
+                {picked !== null && isPicked && !isCorrect && (
+                  <AlertCircle className="h-5 w-5 text-rose-400" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {picked !== null && (
+          <div className="mt-4">
+            <div className="flex items-start gap-2 rounded-2xl bg-sky-50 px-4 py-3 text-sm text-slate-600">
+              <Leaf className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+              <span>{q.fact}</span>
+            </div>
+            <button
+              onClick={next}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-emerald-500 to-sky-500 px-6 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.02]"
+            >
+              {isLast ? "Yarışmayı Bitir" : "Sonraki Soru"}
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  EKRAN — OKULLAR ARASI TURNUVA (çalışan MVP) + ÇOK YAKINDA
+ * ------------------------------------------------------------------ */
+
+const SOON_TECH = [
+  {
+    icon: "🗑️",
+    title: "AI Destekli Akıllı Kutular",
+    desc: "Atığı otomatik tanıyıp ayrıştıran yenilikçi geri dönüşüm kutularıyla entegrasyon.",
+  },
+  {
+    icon: "🚁",
+    title: "Sahil Temizleyen Drone'lar",
+    desc: "Kıyıları havadan tarayıp temizliğe yön veren akıllı drone'lar.",
+  },
+  {
+    icon: "🤖",
+    title: "Ağaç Diken Robotlar",
+    desc: "Ağaçlandırmayı hızlandıran otonom dikim robotlarıyla iş birliği.",
+  },
+];
+
+function Matchup({ a, b }: { a: School; b: School }) {
+  const aWin = a.points >= b.points;
+  const row = (s: School, win: boolean) => (
+    <div
+      className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm ${
+        win
+          ? "bg-emerald-50 font-bold text-emerald-800"
+          : "bg-slate-50 text-slate-500"
+      }`}
+    >
+      <span className="truncate pr-2">{s.name}</span>
+      <span className="shrink-0 tabular-nums">{formatNumber(s.points)}</span>
+    </div>
+  );
+  return (
+    <div className="space-y-1.5 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
+      {row(a, aWin)}
+      {row(b, !aWin)}
+    </div>
+  );
+}
+
+function TournamentScreen({ schools }: { schools: School[] }) {
+  const ranked = [...schools].sort((a, b) => b.points - a.points);
+  const top4 = ranked.slice(0, 4);
+  const win = (a: School, b: School) => (a.points >= b.points ? a : b);
+  const finalists =
+    top4.length >= 4 ? [win(top4[0], top4[3]), win(top4[1], top4[2])] : top4;
+  const champ =
+    finalists.length >= 2 ? win(finalists[0], finalists[1]) : finalists[0];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-700">
+          <Medal className="h-3.5 w-3.5" /> Okullar Arası Turnuva
+        </p>
+        <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-800">
+          Bu Haftanın Sıfır Atık Şampiyonası
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          En yüksek puanlı 4 okul eleme usulü yarışıyor — kazanan, haftanın
+          şampiyonu.
+        </p>
+      </div>
+
+      {top4.length >= 4 && (
+        <div className="grid items-center gap-4 rounded-3xl border border-slate-100 bg-white/70 p-5 shadow-sm sm:grid-cols-3">
+          <div className="space-y-3">
+            <p className="text-center text-xs font-bold uppercase tracking-wide text-slate-400">
+              Yarı Final
+            </p>
+            <Matchup a={top4[0]} b={top4[3]} />
+            <Matchup a={top4[1]} b={top4[2]} />
+          </div>
+          <div className="space-y-3">
+            <p className="text-center text-xs font-bold uppercase tracking-wide text-slate-400">
+              Final
+            </p>
+            <Matchup a={finalists[0]} b={finalists[1]} />
+          </div>
+          <div className="text-center">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">
+              Şampiyon
+            </p>
+            <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 px-4 py-6 text-white shadow-md">
+              <Crown className="mx-auto h-9 w-9" strokeWidth={2.2} />
+              <p className="mt-2 text-sm font-extrabold leading-tight">
+                {champ.name}
+              </p>
+              <p className="mt-1 text-xs opacity-90">
+                {formatNumber(champ.points)} puan
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
+          <Sparkles className="h-4 w-4 text-emerald-500" /> Çok Yakında — Yarının
+          Çevre Teknolojisi
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {SOON_TECH.map((t) => (
+            <div
+              key={t.title}
+              className="relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-sm"
+            >
+              <span className="absolute right-3 top-3 rounded-full bg-slate-900/85 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                Çok Yakında
+              </span>
+              <div className="text-3xl">{t.icon}</div>
+              <h4 className="mt-3 text-sm font-extrabold text-slate-800">
+                {t.title}
+              </h4>
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                {t.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-center text-xs text-slate-400">
+          Bu yenilikler uzun vadeli vizyonumuzdur; bugünkü odağımız güçlü ve
+          büyüyen dijital platform.
+        </p>
       </div>
     </div>
   );
